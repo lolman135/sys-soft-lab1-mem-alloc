@@ -1,9 +1,11 @@
-target:
+NAME := allocator
+
+target: clean
 	mkdir -p build
-	gcc main.c -o build/main
+	gcc allocator.c main.c -o build/$(NAME)
 
 clean:
 	rm -rf build
 
 run:
-	./build/main
+	./build/$(NAME)
