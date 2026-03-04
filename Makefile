@@ -1,4 +1,5 @@
 NAME := allocator
+NAME_TEST := test_$(NAME)
 BUILD := build
 SRC := src
 LIB := $(SRC)/lib
@@ -12,14 +13,22 @@ TEST_SRC   := $(SRC)/test.c
 
 all: clean build 
 
-build:
-	mkdir -p $(BUILD)
-	gcc $(CFLAGS) $(LIB) $(MAIN_SRC) $(ALLOC_SRC) -o $(BUILD)/$(NAME)
 
 clean:
 	rm -rf $(BUILD)
 
-run:
+
+build:
+	mkdir -p $(BUILD)
+	gcc $(CFLAGS) $(LIB) $(MAIN_SRC) $(ALLOC_SRC) -o $(BUILD)/$(NAME)
+
+build_test:
+	mkdir -p $(BUILD)
+	gcc $(CFLAGS) $(LIB) $(TEST_SRC) $(ALLOC_SRC) -o $(BUILD)/$(NAME_TEST)
+
+
+run: clean build
 	./$(BUILD)/$(NAME)
 
-test: target run
+test: clean build_test
+	./$(BUILD)/$(NAME_TEST)

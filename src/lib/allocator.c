@@ -10,7 +10,6 @@
 
 #define ALIGN(size) (((size) + sizeof(void*) - 1) & ~(sizeof(void*) - 1))
 #define BLOCK_SIZE sizeof(BlockHeader)
-
 #define ARENA_SIZE (8192)     // 8KB arena size
 #define MAX_BLOCKS 10         // Maximum number of blocks per arena
 
@@ -18,8 +17,8 @@ typedef struct BlockHeader {
     size_t size;
     struct BlockHeader* next;
     int free;
-    int first;  // Is this the first block in the arena?
-    int last;   // Is this the last block in the arena?
+    int first;  
+    int last;
 } BlockHeader;
 
 typedef struct Arena {
@@ -48,6 +47,7 @@ static void release_memory_to_kernel(void* ptr, size_t size) {
     }
 }
 
+// Create new arena with fixed size and random number of blocks
 static Arena* create_arena(size_t request_size) {
     size_t arena_total = ALIGN(sizeof(Arena) + ARENA_SIZE);
     void* memory = request_memory_from_kernel(arena_total);
@@ -58,7 +58,6 @@ static Arena* create_arena(size_t request_size) {
     arena->next = NULL;
     arena->data = (void*)(arena + 1);
 
-    // Сохраняем случайность, как было
     int num_blocks = rand() % MAX_BLOCKS + 1;
     if (num_blocks < 1) num_blocks = 1;
 
@@ -66,14 +65,13 @@ static Arena* create_arena(size_t request_size) {
     size_t remainder = ARENA_SIZE % num_blocks;
 
     BlockHeader* last_block = (BlockHeader*)arena->data;
-    last_block->size = base_block_size + remainder;  // первый получает остаток
+    last_block->size = base_block_size + remainder;  // first block gets remainder
     last_block->free = 1;
     last_block->first = 1;
     last_block->last = (num_blocks == 1) ? 1 : 0;
     last_block->next = NULL;
 
     BlockHeader* prev = last_block;
-
     for (int i = 1; i < num_blocks; ++i) {
         BlockHeader* new_block = (BlockHeader*)((char*)prev + prev->size + BLOCK_SIZE);
         new_block->size = base_block_size;
@@ -98,6 +96,7 @@ Allocator* allocator_create(void) {
 
 void allocator_destroy(Allocator* a) {
     if (!a) return;
+
     Arena* curr = a->arena_list;
     while (curr) {
         Arena* next = curr->next;
@@ -124,14 +123,14 @@ void* mem_alloc(Allocator* a, size_t size) {
         arena = arena->next;
     }
 
-    // новая арена
+    // No suitable block found → create new arena
     Arena* new_arena = create_arena(size);
     if (!new_arena) return NULL;
 
     new_arena->next = a->arena_list;
     a->arena_list = new_arena;
 
-    // пробуем ещё раз (теперь в новой арене)
+    // Try again in the new arena
     BlockHeader* block = (BlockHeader*)new_arena->data;
     while (block) {
         if (block->free && block->size >= size) {
@@ -154,7 +153,7 @@ void mem_free(Allocator* a, void* ptr) {
     }
     to_free->free = 1;
 
-    // слияние (как было, но теперь через структуру)
+    // Coalesce adjacent free blocks in all arenas
     Arena* arena = a->arena_list;
     while (arena) {
         BlockHeader* curr = (BlockHeader*)arena->data;
@@ -162,7 +161,7 @@ void mem_free(Allocator* a, void* ptr) {
             if (curr->free && curr->next->free) {
                 curr->size += curr->next->size + BLOCK_SIZE;
                 curr->next = curr->next->next;
-                // не продвигаем curr → проверяем этот же блок ещё раз
+                // Do not advance curr — check again for further merges
             } else {
                 curr = curr->next;
             }
@@ -179,7 +178,7 @@ void* mem_realloc(Allocator* a, void* ptr, size_t new_size) {
     new_size = ALIGN(new_size);
 
     if (new_size <= block->size) {
-        return ptr;           // ← важное улучшение: не копируем зря
+        return ptr;
     }
 
     void* new_ptr = mem_alloc(a, new_size);
