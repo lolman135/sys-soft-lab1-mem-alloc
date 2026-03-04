@@ -1,2 +1,4 @@
 .vscode
 build
+example
+.DS_Store
