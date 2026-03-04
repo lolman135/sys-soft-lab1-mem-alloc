@@ -30,6 +30,8 @@ static uint64_t simple_checksum(const void* data, size_t len) {
 }
 
 int main(void) {
+
+    // Automated testing
     srand(time(NULL) ^ (uintptr_t)&main);
 
     Allocator* alloc = allocator_create();
@@ -47,7 +49,7 @@ int main(void) {
     for (int i = 0; i < ITERATIONS; i++) {
         int r = rand() % 100;
 
-        // ~45% chance: alloc
+        
         if (r < 45 && active_count < MAX_BLOCKS) {
             size_t sz = MIN_ALLOC_SIZE + (rand() % (MAX_ALLOC_SIZE - MIN_ALLOC_SIZE + 1));
             void* p = mem_alloc(alloc, sz);
@@ -66,7 +68,7 @@ int main(void) {
                 active_count++;
             }
         }
-        // ~40% chance: free (if any blocks exist)
+        
         else if (r < 85 && active_count > 0) {
             int idx = rand() % active_count;
             void* p = blocks[idx].ptr;
@@ -87,7 +89,7 @@ int main(void) {
             blocks[idx] = blocks[active_count - 1];
             active_count--;
         }
-        // ~15% chance: realloc (if any blocks exist)
+        
         else if (active_count > 0) {
             int idx = rand() % active_count;
             void* old_ptr = blocks[idx].ptr;
@@ -118,7 +120,7 @@ int main(void) {
                 blocks[idx].requested_size = new_sz;
                 blocks[idx].checksum = new_cs;
             }
-            // If realloc failed, keep old block (standard realloc behavior)
+            
         }
     }
 

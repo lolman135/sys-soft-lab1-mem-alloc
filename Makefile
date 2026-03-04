@@ -3,7 +3,6 @@ NAME_TEST := test_$(NAME)
 BUILD := build
 SRC := src
 LIB := $(SRC)/lib
-
 CFLAGS := -Wall -g -I
 
 MAIN_SRC   := $(SRC)/main.c

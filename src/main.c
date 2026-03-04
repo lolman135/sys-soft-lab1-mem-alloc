@@ -4,6 +4,8 @@
 #include "allocator.h"
 
 int main() {
+
+    // Manual testing
     srand(time(NULL));
 
     Allocator* a = allocator_create();
