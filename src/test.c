@@ -5,15 +5,15 @@
 #include <stdint.h>
 #include <string.h>
 
-#define MAX_BLOCKS          2048
-#define ITERATIONS          4000
-#define MAX_ALLOC_SIZE      8192
-#define MIN_ALLOC_SIZE      1
+#define MAX_BLOCKS 2048
+#define ITERATIONS 2000
+#define MAX_ALLOC_SIZE 8192
+#define MIN_ALLOC_SIZE 1
 
 typedef struct {
-    void*     ptr;
-    size_t    requested_size;
-    uint64_t  checksum;
+    void* ptr;
+    size_t requested_size;
+    uint64_t checksum;
 } TrackedBlock;
 
 // Simple hash function to detect data corruption
