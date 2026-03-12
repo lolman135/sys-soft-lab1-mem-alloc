@@ -7,11 +7,11 @@
 #include <stdint.h>
 #include <time.h>
 
-#define ALIGNMENT sizeof(void*)
-#define ALIGN(size) (((size) + ALIGNMENT - 1) & ~(ALIGNMENT - 1))
-#define HEADER_SIZE sizeof(BlockHeader)
-#define MIN_SPLIT (HEADER_SIZE * 2)
-#define ARENA_SIZE (8192ULL)
+#define ALIGNMENT     sizeof(void*)
+#define ALIGN(size)   (((size) + ALIGNMENT - 1) & ~(ALIGNMENT - 1))
+#define HEADER_SIZE   sizeof(BlockHeader)
+#define MIN_SPLIT     (HEADER_SIZE * 2)
+#define ARENA_SIZE    (8192ULL)
 
 typedef struct BlockHeader {
     size_t size;
@@ -76,22 +76,13 @@ static Arena* find_arena(Allocator* a, void* ptr) {
     return NULL;
 }
 
+// Порядок функцій тепер точно відповідає header-файлу
+
 Allocator* allocator_create(void) {
     Allocator* a = calloc(1, sizeof(Allocator));
     if (!a) return NULL;
     a->arenas = NULL;
     return a;
-}
-
-void allocator_destroy(Allocator* a) {
-    if (!a) return;
-    Arena* cur = a->arenas;
-    while (cur) {
-        Arena* nxt = cur->next;
-        sys_free(cur->memory - sizeof(Arena), ALIGN(sizeof(Arena) + ARENA_SIZE));
-        cur = nxt;
-    }
-    free(a);
 }
 
 void* mem_alloc(Allocator* a, size_t size) {
@@ -146,6 +137,26 @@ void* mem_alloc(Allocator* a, size_t size) {
     return (char*)(block + 1);
 }
 
+void* mem_realloc(Allocator* a, void* ptr, size_t new_size) {
+    if (!ptr) return mem_alloc(a, new_size);
+    if (new_size == 0) {
+        mem_free(a, ptr);
+        return NULL;
+    }
+
+    new_size = ALIGN(new_size);
+    BlockHeader* block = (BlockHeader*)ptr - 1;
+
+    if (new_size <= block->size) return ptr;
+
+    void* new_ptr = mem_alloc(a, new_size);
+    if (new_ptr) {
+        memcpy(new_ptr, ptr, block->size);
+        mem_free(a, ptr);
+    }
+    return new_ptr;
+}
+
 void mem_free(Allocator* a, void* ptr) {
     if (!a || !ptr) return;
 
@@ -165,7 +176,6 @@ void mem_free(Allocator* a, void* ptr) {
     block->next_free = arena->free_list;
     arena->free_list = block;
 
-    // Coalesce adjacent free blocks
     BlockHeader** curr_ptr = &arena->free_list;
     while (*curr_ptr) {
         BlockHeader* curr = *curr_ptr;
@@ -185,24 +195,15 @@ void mem_free(Allocator* a, void* ptr) {
     }
 }
 
-void* mem_realloc(Allocator* a, void* ptr, size_t new_size) {
-    if (!ptr) return mem_alloc(a, new_size);
-    if (new_size == 0) {
-        mem_free(a, ptr);
-        return NULL;
+void allocator_destroy(Allocator* a) {
+    if (!a) return;
+    Arena* cur = a->arenas;
+    while (cur) {
+        Arena* nxt = cur->next;
+        sys_free(cur->memory - sizeof(Arena), ALIGN(sizeof(Arena) + ARENA_SIZE));
+        cur = nxt;
     }
-
-    new_size = ALIGN(new_size);
-    BlockHeader* block = (BlockHeader*)ptr - 1;
-
-    if (new_size <= block->size) return ptr;
-
-    void* new_ptr = mem_alloc(a, new_size);
-    if (new_ptr) {
-        memcpy(new_ptr, ptr, block->size);
-        mem_free(a, ptr);
-    }
-    return new_ptr;
+    free(a);
 }
 
 void mem_show(Allocator* a, const char* op) {
